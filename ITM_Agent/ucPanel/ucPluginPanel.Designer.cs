@@ -4,7 +4,7 @@ namespace ITM_Agent.ucPanel
     partial class ucPluginPanel
     {
         private System.ComponentModel.IContainer components = null;
-        
+
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -13,16 +13,16 @@ namespace ITM_Agent.ucPanel
             }
             base.Dispose(disposing);
         }
-        
+
         private System.Windows.Forms.TabPage tabPage1;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.ListBox lb_PluginList;
         private System.Windows.Forms.Button btn_PlugAdd;
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.Button btn_PlugRemove;
-        
+
         #region 구성 요소 디자이너에서 생성한 코드
-        
+
         private void InitializeComponent()
         {
             this.tabPage1 = new System.Windows.Forms.TabPage();
@@ -76,7 +76,7 @@ namespace ITM_Agent.ucPanel
             this.btn_PlugRemove.TabIndex = 7;
             this.btn_PlugRemove.Text = "Remove";
             this.btn_PlugRemove.UseVisualStyleBackColor = true;
-            this.btn_PlugRemove.Click += new System.EventHandler(this.btn_PlugRemove_Click);            
+            this.btn_PlugRemove.Click += new System.EventHandler(this.btn_PlugRemove_Click);
             //
             // btn_PlugAdd
             //
