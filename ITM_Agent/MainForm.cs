@@ -114,7 +114,7 @@ namespace ITM_Agent
                 }));
             });
         }
-        
+
         #region --- EQPID, 메뉴, UI 업데이트 로직 ---
 
         private void InitializeEqpid()
@@ -140,6 +140,7 @@ namespace ITM_Agent
         private void UpdateMenusBasedOnType()
         {
             string type = _settingsManager.GetValue("Eqpid", "Type");
+
             if ("ONTO".Equals(type, StringComparison.OrdinalIgnoreCase))
             {
                 tsm_Onto.Visible = true;
