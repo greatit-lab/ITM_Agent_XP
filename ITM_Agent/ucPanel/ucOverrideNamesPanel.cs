@@ -68,7 +68,7 @@ namespace ITM_Agent.ucPanel
                 .Select(parts => parts[1].Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-            
+
             cb_BaseDatePath.Items.Clear();
             cb_BaseDatePath.Items.AddRange(regexFolders);
 
@@ -110,7 +110,7 @@ namespace ITM_Agent.ucPanel
                 }
             }
         }
-        
+
         private void OnRemoveTargetFolderClick(object sender, EventArgs e)
         {
             if (lb_TargetComparePath.SelectedItem == null) return;
@@ -166,8 +166,8 @@ namespace ITM_Agent.ucPanel
                     _stabilityTimer = null;
                 }
             }
-            
-            foreach(var stableFile in stableFiles)
+
+            foreach (var stableFile in stableFiles)
             {
                 ThreadPool.QueueUserWorkItem(_ => CreateBaselineInfoFile(stableFile));
             }
@@ -179,11 +179,11 @@ namespace ITM_Agent.ucPanel
             {
                 // CP949 인코딩으로 파일 읽기
                 string content;
-                using(var sr = new StreamReader(filePath, Encoding.GetEncoding(949)))
+                using (var sr = new StreamReader(filePath, Encoding.GetEncoding(949)))
                 {
                     content = sr.ReadToEnd();
                 }
-                
+
                 var match = Regex.Match(content, @"Date and Time:\s*(\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2} (AM|PM))");
                 if (match.Success && DateTime.TryParse(match.Groups[1].Value, out DateTime result))
                 {
@@ -196,12 +196,12 @@ namespace ITM_Agent.ucPanel
                     string originalName = Path.GetFileNameWithoutExtension(filePath);
                     string infoFileName = $"{result:yyyyMMdd_HHmmss}_{originalName}.info";
                     string infoFilePath = Path.Combine(baselineFolder, infoFileName);
-                    
+
                     File.Create(infoFilePath).Close();
                     _logger.LogEvent($"[OverrideNames] Baseline info file created: {infoFileName}");
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError($"[OverrideNames] Failed to create .info file for '{filePath}'. Error: {ex.Message}");
             }
