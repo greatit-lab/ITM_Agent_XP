@@ -12,6 +12,7 @@ namespace ITM_Agent.ucPanel
     {
         private readonly SettingsManager _settingsManager;
 
+        // Settings.ini 파일의 섹션 이름을 상수로 정의
         private const string TargetFoldersSection = "TargetFolders";
         private const string ExcludeFoldersSection = "ExcludeFolders";
         private const string BaseFolderSection = "BaseFolder";
@@ -129,9 +130,10 @@ namespace ITM_Agent.ucPanel
         private void EditRegex_Click(object sender, EventArgs e)
         {
             if (lb_RegexList.SelectedItem == null) return;
+
             string selectedEntry = lb_RegexList.SelectedItem.ToString();
             var parts = selectedEntry.Split(new[] { "->" }, StringSplitOptions.None);
-            
+
             using (var form = new RegexConfigForm(lb_BaseFolder.Text))
             {
                 form.RegexPattern = parts[0].Trim();
@@ -158,15 +160,35 @@ namespace ITM_Agent.ucPanel
         #endregion
 
         #region --- IPanelState 구현 ---
-        // UpdateState 메서드 수정
+        // UpdateState 메서드 최종 수정
         public void UpdateState(bool isRunning)
         {
-            // UserControl 전체를 비활성화하는 대신, 내부의 컨테이너(GroupBox)들만 비활성화합니다.
-            // 이렇게 하면 TabControl 자체는 활성화 상태를 유지하여 탭 전환이 가능합니다.
+            // UserControl 전체나 GroupBox를 비활성화하는 대신,
+            // 각 컨테이너 내부의 실제 입력 컨트롤들만 상태를 변경합니다.
             bool controlsEnabled = !isRunning;
-            groupBox1.Enabled = controlsEnabled;
-            groupBox2.Enabled = controlsEnabled;
-            groupBox3.Enabled = controlsEnabled;
+
+            // tabPage1 (Categorize) 내부 컨트롤 제어
+            SetChildControlsEnabled(this.splitContainer1.Panel1, controlsEnabled);
+            SetChildControlsEnabled(this.splitContainer1.Panel2, controlsEnabled);
+            SetChildControlsEnabled(this.groupBox2, controlsEnabled);
+
+            // tabPage2 (Regex) 내부 컨트롤 제어
+            SetChildControlsEnabled(this.groupBox3, controlsEnabled);
+        }
+
+        /// <summary>
+        /// 지정된 부모 컨트롤의 모든 자식 컨트롤(컨테이너 제외)의 Enabled 속성을 설정하는 헬퍼 메서드
+        /// </summary>
+        private void SetChildControlsEnabled(Control parent, bool enabled)
+        {
+            foreach (Control ctrl in parent.Controls)
+            {
+                // GroupBox, Panel, SplitContainer 같은 컨테이너 자체는 건드리지 않습니다.
+                if (!(ctrl is GroupBox || ctrl is Panel || ctrl is SplitContainer || ctrl is SplitterPanel))
+                {
+                    ctrl.Enabled = enabled;
+                }
+            }
         }
         #endregion
     }
