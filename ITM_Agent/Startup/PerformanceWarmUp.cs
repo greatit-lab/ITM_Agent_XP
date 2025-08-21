@@ -44,7 +44,7 @@ namespace ITM_Agent.Startup
                 var dbManager = serviceProvider.GetService<DatabaseManager>();
                 if (dbManager != null)
                 {
-                    dbManager.TestConnection(); 
+                    dbManager.TestConnection();
                     logger?.LogDebug("[PerformanceWarmUp] Database connection pool warmed up.");
                 }
             }
