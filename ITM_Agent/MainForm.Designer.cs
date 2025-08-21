@@ -270,12 +270,10 @@ namespace ITM_Agent
             // 
             // pMain
             // 
-            this.pMain.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.pMain.Location = new System.Drawing.Point(0, 25);
+            this.pMain.Dock = System.Windows.Forms.DockStyle.Fill;
+            //this.pMain.Location = new System.Drawing.Point(0, 25);
             this.pMain.Name = "pMain";
-            this.pMain.Size = new System.Drawing.Size(676, 303);
+            //this.pMain.Size = new System.Drawing.Size(676, 303);
             this.pMain.TabIndex = 0;
             // 
             // btn_Quit
@@ -339,6 +337,7 @@ namespace ITM_Agent
             this.menuStrip1.PerformLayout();
             this.splitContainer3.Panel1.ResumeLayout(false);
             this.splitContainer3.Panel1.PerformLayout();
+            this.lb_eqpid.BringToFront();
             this.splitContainer3.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer3)).EndInit();
             this.splitContainer3.ResumeLayout(false);
