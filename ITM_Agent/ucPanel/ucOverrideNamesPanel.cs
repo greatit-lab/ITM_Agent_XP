@@ -233,7 +233,6 @@ namespace ITM_Agent.ucPanel
                 }
             }
         }
-        
         #endregion
 
         #region --- IPanelState 구현 ---
