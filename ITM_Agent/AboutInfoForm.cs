@@ -16,7 +16,7 @@ namespace ITM_Agent
         public AboutInfoForm(string versionInfo)
         {
             InitializeComponent();
-            
+
             // MainForm으로부터 버전 정보를 전달받아 표시
             lb_Version.Text = versionInfo;
 
