@@ -110,7 +110,7 @@ namespace ITM_Agent.Services
                             {
                                 cmd.Parameters.Add(new NpgsqlParameter($":{column.ColumnName}", DBNull.Value));
                             }
-                            
+
                             foreach (DataRow row in dataTable.Rows)
                             {
                                 foreach (DataColumn column in dataTable.Columns)
@@ -122,9 +122,9 @@ namespace ITM_Agent.Services
                                     cmd.ExecuteNonQuery();
                                 }
                                 // "PostgresException" 대신 일반 "Exception"으로 받고, 메시지 내용으로 중복 오류를 확인
-                                catch(Exception ex) 
+                                catch(Exception ex)
                                 {
-                                     // 23505는 unique_violation (중복 키) 에러 코드
+                                    // 23505는 unique_violation (중복 키) 에러 코드
                                     if (ex.Message.Contains("23505"))
                                     {
                                         _logger.LogDebug($"[DatabaseManager] Duplicate row skipped for table '{tableName}'.");
