@@ -4,7 +4,7 @@ namespace ITM_Agent.ucPanel
     partial class ucUploadPanel
     {
         private System.ComponentModel.IContainer components = null;
-        
+
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -13,7 +13,7 @@ namespace ITM_Agent.ucPanel
             }
             base.Dispose(disposing);
         }
-        
+
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.Button btn_FlatSet;
         private System.Windows.Forms.Button btn_FlatClear;
@@ -32,9 +32,9 @@ namespace ITM_Agent.ucPanel
         private System.Windows.Forms.Button btn_PreAlignSet;
         private System.Windows.Forms.ComboBox cb_PreAlignPlugin;
         private System.Windows.Forms.ComboBox cb_ImagePlugin;
-        
+
         #region 구성 요소 디자이너에서 생성한 코드
-        
+
         private void InitializeComponent()
         {
             this.groupBox1 = new System.Windows.Forms.GroupBox();
@@ -451,7 +451,7 @@ namespace ITM_Agent.ucPanel
             this.ResumeLayout(false);
         }
         #endregion
-        
+
         private System.Windows.Forms.Button btn_PreAlignClear;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Button btn_ImgClear;
