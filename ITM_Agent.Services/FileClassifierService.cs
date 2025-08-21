@@ -42,13 +42,13 @@ namespace ITM_Agent.Services
             _excludeFolders = _settingsManager.GetSectionEntries("ExcludeFolders")
                 .Select(p => p.ToUpperInvariant())
                 .ToList();
-                
+
             _regexRules = new Dictionary<string, string>();
             var regexEntries = _settingsManager.GetSectionEntries("Regex");
-            foreach(var entry in regexEntries)
+            foreach (var entry in regexEntries)
             {
                 var parts = entry.Split(new[] { "->" }, StringSplitOptions.None);
-                if(parts.Length == 2)
+                if (parts.Length == 2)
                 {
                     _regexRules[parts[0].Trim()] = parts[1].Trim();
                 }
@@ -58,7 +58,7 @@ namespace ITM_Agent.Services
         private void OnWatchedFileChanged(string filePath, WatcherChangeTypes changeType)
         {
             if (changeType != WatcherChangeTypes.Created && changeType != WatcherChangeTypes.Changed) return;
-            
+
             ThreadPool.QueueUserWorkItem(_ => ProcessFile(filePath));
         }
 
@@ -66,14 +66,12 @@ namespace ITM_Agent.Services
         {
             try
             {
-                // ★★★★★★★★★★★★ 수정된 부분 ★★★★★★★★★★★★
                 // 파일 처리를 시작하기 전에 파일이 안정화될 때까지 대기합니다.
                 if (!WaitForFileReady(filePath, 10, 500))
                 {
-                     _logger.LogError($"[FileClassifier] File copy failed (file locked after retries): {Path.GetFileName(filePath)}");
-                     return;
+                    _logger.LogError($"[FileClassifier] File copy failed (file locked after retries): {Path.GetFileName(filePath)}");
+                    return;
                 }
-                // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
                 string fileDirectory = Path.GetDirectoryName(filePath)?.ToUpperInvariant();
                 string fileName = Path.GetFileName(filePath);
@@ -90,12 +88,12 @@ namespace ITM_Agent.Services
                     {
                         string destinationFolder = rule.Value;
                         string destinationFile = Path.Combine(destinationFolder, fileName);
-                        
+
                         Directory.CreateDirectory(destinationFolder);
 
                         File.Copy(filePath, destinationFile, true);
                         _logger.LogEvent($"[FileClassifier] File '{fileName}' classified and copied to '{destinationFolder}'");
-                        
+
                         return;
                     }
                 }
@@ -105,31 +103,26 @@ namespace ITM_Agent.Services
                 _logger.LogError($"[FileClassifier] Error processing file '{filePath}'. Exception: {ex.Message}");
             }
         }
-        
-        // ★★★★★★★★★★★★ 추가된 메서드 ★★★★★★★★★★★★
-        /// <summary>
-        /// 파일이 다른 프로세스에 의해 잠겨 있지 않은지 확인하고, 잠겨 있다면 잠시 대기 후 재시도합니다.
-        /// </summary>
+
+        // Task<bool> -> bool, async 키워드 제거
         private bool WaitForFileReady(string filePath, int maxRetries, int delayMilliseconds)
         {
             for (int attempt = 0; attempt < maxRetries; attempt++)
             {
                 try
                 {
-                    // 파일을 읽기/쓰기 공유 모드로 열어봄으로써 잠금 상태를 확인
                     using (File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                     {
-                        return true; // 파일 접근 성공
+                        return true;
                     }
                 }
                 catch (IOException)
                 {
-                    Thread.Sleep(delayMilliseconds); // 잠시 대기 후 재시도
+                    Thread.Sleep(delayMilliseconds);
                 }
             }
-            return false; // 최종적으로 파일 접근 실패
+            return false;
         }
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
         public void Dispose()
         {
