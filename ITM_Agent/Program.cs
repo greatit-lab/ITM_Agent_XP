@@ -70,7 +70,6 @@ namespace ITM_Agent
             }
             catch (Exception ex)
             {
-                // 초기화 과정에서 발생하는 모든 예외를 처리
                 MessageBox.Show($"프로그램 초기화 중 심각한 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
@@ -99,7 +98,7 @@ namespace ITM_Agent
     /// <summary>
     /// 간단한 서비스 프로바이더(DI 컨테이너) 구현
     /// </summary>
-    public class ServiceProvider : IServiceProvider
+    public class AppServiceProvider : IAppServiceProvider
     {
         private readonly Dictionary<Type, object> _services = new Dictionary<Type, object>();
 
