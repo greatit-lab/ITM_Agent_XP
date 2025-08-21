@@ -125,7 +125,7 @@ namespace ITM_Agent.Services
                 _logger.LogError($"[InfoRetentionCleaner] Failed to delete file '{filePath}'. Error: {ex.Message}");
             }
         }
-        
+
         public void Dispose()
         {
             Stop();
