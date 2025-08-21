@@ -99,7 +99,7 @@ namespace ITM_Agent.ucPanel
                 cb_info_Retention.SelectedIndex = -1;
                 _settingsManager.SetValue(OptionSection, KeyInfoRetention, null); // null을 전달하여 키-값 쌍을 제거
             }
-            
+
             // 4. UI 상태 업데이트
             UpdateRetentionControlsState();
         }
