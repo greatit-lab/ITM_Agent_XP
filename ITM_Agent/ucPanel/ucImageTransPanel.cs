@@ -156,7 +156,7 @@ namespace ITM_Agent.ucPanel
                     .Where(kvp => (now - kvp.Value).TotalSeconds >= waitSeconds)
                     .Select(kvp => kvp.Key)
                     .ToList();
-                
+
                 filesToProcess.ForEach(path => _pendingFiles.Remove(path));
 
                 if (!_pendingFiles.Any())
@@ -165,20 +165,20 @@ namespace ITM_Agent.ucPanel
                     _checkTimer = null;
                 }
             }
-            
+
             var baseNamesToProcess = filesToProcess
                 .Select(GetBaseName)
                 .Where(name => name != null)
                 .Distinct();
 
-            foreach(var baseName in baseNamesToProcess)
+            foreach (var baseName in baseNamesToProcess)
             {
-                lock(_lock)
+                lock (_lock)
                 {
                     if (_processedBaseNames.Contains(baseName)) continue;
                     _processedBaseNames.Add(baseName);
                 }
-                
+
                 ThreadPool.QueueUserWorkItem(_ => MergeImageGroup(baseName, _settingsManager.GetValue(Section, KeyTargetFolder)));
             }
         }
@@ -200,13 +200,13 @@ namespace ITM_Agent.ucPanel
                     .OrderBy(x => x.Page)
                     .Select(x => x.Path)
                     .ToList();
-                
+
                 if (imageFiles.Any())
                 {
                     _pdfMergeManager.MergeImagesToPdf(imageFiles, outputPdfPath);
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError($"[ucImageTransPanel] Failed to merge PDF for '{baseName}'. Error: {ex.Message}");
             }
