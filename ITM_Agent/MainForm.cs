@@ -60,7 +60,7 @@ namespace ITM_Agent
             // 폼이 표시된 직후에 비동기 초기화를 시작하도록 Shown 이벤트 핸들러를 연결합니다.
             this.Shown += MainForm_Shown;
         }
-        
+
         private void InitializeCustomComponents()
         {
             this.Text = $"ITM Agent - {AppVersion}";
@@ -162,7 +162,10 @@ namespace ITM_Agent
         private void OpenMenuItem_Click(object sender, EventArgs e) { /* Open 로직 구현 */ }
         private void SaveAsMenuItem_Click(object sender, EventArgs e) { /* Save As 로직 구현 */ }
         private void QuitMenuItem_Click(object sender, EventArgs e) => Btn_Quit_Click(sender, e);
-        
+
+        #endregion
+
+        #region --- 버튼 이벤트 핸들러 ---
         private void Btn_Run_Click(object sender, EventArgs e)
         {
             _logger.LogEvent("Run button clicked.");
@@ -172,11 +175,13 @@ namespace ITM_Agent
                 MessageBox.Show("감시할 대상 폴더가 설정되지 않았습니다.", "설정 필요", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
             _fileWatcher.Start(targetFolders);
             _performanceMonitor.Start();
             _performanceDbWriter.Start();
             _infoCleaner.Start();
             _pluginManager.GetLoadedPlugins().ToList().ForEach(p => p.Start());
+            _fileClassifier.Start(); // ★★★★★ FileClassifierService 시작 ★★★★★
             UpdateUIState(true);
         }
 
@@ -184,29 +189,37 @@ namespace ITM_Agent
         {
             if (MessageBox.Show("모든 작업을 중지하시겠습니까?", "작업 중지 확인", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
+
             _logger.LogEvent("Stop button clicked.");
             _fileWatcher.Stop();
             _performanceMonitor.Stop();
             _performanceDbWriter.Stop();
             _infoCleaner.Stop();
             _pluginManager.GetLoadedPlugins().ToList().ForEach(p => p.Stop());
+            _fileClassifier.Stop(); // ★★★★★ FileClassifierService 중지 ★★★★★
             UpdateUIState(false);
         }
+        #endregion
 
+        #region --- Tray Icon & Shutdown Logic ---
         private void InitializeTrayIcon()
         {
             _trayMenu = new ContextMenuStrip();
             _runMenuItem = new ToolStripMenuItem("Run", null, (s, e) => { if (btn_Run.Enabled) btn_Run.PerformClick(); });
             _stopMenuItem = new ToolStripMenuItem("Stop", null, (s, e) => { if (btn_Stop.Enabled) btn_Stop.PerformClick(); });
             _quitMenuItem = new ToolStripMenuItem("Quit", null, (s, e) => Btn_Quit_Click(s, e));
+
             _trayMenu.Items.AddRange(new ToolStripItem[] {
                 new ToolStripMenuItem(this.Text) { Enabled = false }, new ToolStripSeparator(),
                 _runMenuItem, _stopMenuItem, _quitMenuItem
             });
+
             _trayIcon = new NotifyIcon
             {
-                Icon = this.Icon, ContextMenuStrip = _trayMenu,
-                Visible = true, Text = this.Text
+                Icon = this.Icon,
+                ContextMenuStrip = _trayMenu,
+                Visible = true,
+                Text = this.Text
             };
             _trayIcon.DoubleClick += (sender, e) => RestoreMainForm();
         }
@@ -247,9 +260,12 @@ namespace ITM_Agent
             _performanceMonitor.Dispose();
             _performanceDbWriter.Dispose();
             _pluginManager?.GetLoadedPlugins().ToList().ForEach(p => p.Dispose());
+            _fileClassifier.Dispose(); // ★★★★★ FileClassifierService 리소스 정리 ★★★★★
             Application.Exit();
         }
+        #endregion
 
+        #region --- UI ㅏㅇ태 및 패널 관리 ---
         private bool IsReadyToRun()
         {
             bool hasTargetFolders = _settingsManager.GetSectionEntries("TargetFolders").Any();
@@ -274,15 +290,18 @@ namespace ITM_Agent
                 ts_Status.Text = IsReadyToRun() ? "Ready to Run" : "Stopped";
                 ts_Status.ForeColor = IsReadyToRun() ? Color.Blue : Color.Red;
             }
+
             newToolStripMenuItem.Enabled = !isRunning;
             openToolStripMenuItem.Enabled = !isRunning;
             saveAsToolStripMenuItem.Enabled = !isRunning;
+
             if (_trayMenu != null)
             {
                 _runMenuItem.Enabled = btn_Run.Enabled;
                 _stopMenuItem.Enabled = btn_Stop.Enabled;
                 _quitMenuItem.Enabled = btn_Quit.Enabled;
             }
+
             foreach (var panel in _panels.Values)
             {
                 if (panel is IPanelState updatablePanel)
@@ -313,5 +332,10 @@ namespace ITM_Agent
             }
         }
         #endregion
+    }
+
+    public interface IPanelState
+    {
+        void UpdateState(bool isRunning);
     }
 }
