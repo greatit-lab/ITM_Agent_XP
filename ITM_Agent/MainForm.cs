@@ -1,12 +1,14 @@
 // ITM_Agent/MainForm.cs
 using ITM_Agent.Core;
 using ITM_Agent.Services;
+using ITM_Agent.ucPanel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Threading; // ThreadPool 사용을 위해 추가
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace ITM_Agent
@@ -25,6 +27,7 @@ namespace ITM_Agent
         private readonly EqpidManager _eqpidManager;
         private readonly InfoRetentionCleaner _infoCleaner;
         private readonly PerformanceDbWriter _performanceDbWriter;
+        private readonly FileClassifierService _fileClassifier;
 
         //--- UI Panels ---
         private readonly Dictionary<string, UserControl> _panels = new Dictionary<string, UserControl>();
@@ -49,6 +52,7 @@ namespace ITM_Agent
             _eqpidManager = new EqpidManager(_serviceProvider, AppVersion);
             _infoCleaner = new InfoRetentionCleaner(_serviceProvider);
             _performanceDbWriter = new PerformanceDbWriter(_serviceProvider);
+            _fileClassifier = new FileClassifierService(serviceProvider);
 
             InitializeComponent();
             InitializeCustomComponents();
@@ -57,7 +61,25 @@ namespace ITM_Agent
             this.Shown += MainForm_Shown;
         }
         
-        // ... (InitializeCustomComponents 메서드는 이전과 동일) ...
+        private void InitializeCustomComponents()
+        {
+            this.Text = $"ITM Agent - {AppVersion}";
+            this.Icon = new Icon(@"Resources\Icons\icon.ico");
+
+            _panels["Categorize"] = new ucConfigurationPanel(_serviceProvider);
+            _panels["OverrideNames"] = new ucOverrideNamesPanel(_serviceProvider);
+            _panels["ImageTrans"] = new ucImageTransPanel(_serviceProvider);
+            _panels["UploadData"] = new ucUploadPanel(_serviceProvider);
+            _panels["PluginList"] = new ucPluginPanel(_serviceProvider);
+            _panels["Option"] = new ucOptionPanel(_serviceProvider);
+
+            RegisterMenuEvents();
+            btn_Run.Click += Btn_Run_Click;
+            btn_Stop.Click += Btn_Stop_Click;
+            btn_Quit.Click += Btn_Quit_Click;
+            InitializeTrayIcon();
+            this.FormClosing += MainForm_FormClosing;
+        }
 
         private void MainForm_Load(object sender, EventArgs e)
         {
@@ -69,10 +91,6 @@ namespace ITM_Agent
             btn_Quit.Enabled = false;
         }
 
-        /// <summary>
-        /// 폼이 사용자에게 처음으로 표시된 직후에 호출됩니다.
-        /// 무거운 초기화 작업을 백그라운드 스레드에서 수행합니다.
-        /// </summary>
         private void MainForm_Shown(object sender, EventArgs e)
         {
             // ThreadPool을 사용하여 백그라운드 스레드에서 초기화 작업을 실행합니다.
@@ -98,28 +116,7 @@ namespace ITM_Agent
             });
         }
         
-        // ... (이하 나머지 모든 코드는 이전 답변과 동일합니다) ...
-
-        #region --- 기존 코드 (변경 없음) ---
-        private void InitializeCustomComponents()
-        {
-            this.Text = $"ITM Agent - {AppVersion}";
-            this.Icon = new Icon(@"Resources\Icons\icon.ico");
-
-            _panels["Categorize"] = new ucConfigurationPanel(_serviceProvider);
-            _panels["OverrideNames"] = new ucOverrideNamesPanel(_serviceProvider);
-            _panels["ImageTrans"] = new ucImageTransPanel(_serviceProvider);
-            _panels["UploadData"] = new ucUploadPanel(_serviceProvider);
-            _panels["PluginList"] = new ucPluginPanel(_serviceProvider);
-            _panels["Option"] = new ucOptionPanel(_serviceProvider);
-
-            RegisterMenuEvents();
-            btn_Run.Click += Btn_Run_Click;
-            btn_Stop.Click += Btn_Stop_Click;
-            btn_Quit.Click += Btn_Quit_Click;
-            InitializeTrayIcon();
-            this.FormClosing += MainForm_FormClosing;
-        }
+        #region --- EQPID, 메뉴, UI 업데이트 로직 ---
 
         private void InitializeEqpid()
         {
