@@ -119,7 +119,7 @@ namespace ITM_Agent.ucPanel
                 // AssemblyPath 속성이 리팩토링된 IPlugin/PluginBase에 없으므로, 파일 이름을 추정
                 string dllFileName = $"{pluginToRemove.GetType().Assembly.GetName().Name}.dll";
                 string dllPath = Path.Combine(_pluginsPath, dllFileName);
-                
+
                 if (File.Exists(dllPath))
                 {
                     File.Delete(dllPath);
@@ -127,7 +127,7 @@ namespace ITM_Agent.ucPanel
                 }
                 else
                 {
-                     _logger.LogError($"[ucPluginPanel] Could not find plugin file to delete: {dllPath}");
+                    _logger.LogError($"[ucPluginPanel] Could not find plugin file to delete: {dllPath}");
                 }
 
                 _pluginManager.LoadPlugins();
