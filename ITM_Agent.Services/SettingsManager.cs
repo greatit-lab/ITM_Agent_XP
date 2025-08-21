@@ -171,7 +171,7 @@ namespace ITM_Agent.Services
                 File.WriteAllLines(_settingsFilePath, lines, Encoding.UTF8);
             }
         }
-        
+
         /// <summary>
         /// 지정된 섹션 전체를 파일에서 삭제합니다.
         /// </summary>
@@ -193,7 +193,7 @@ namespace ITM_Agent.Services
                 }
             }
         }
-        
+
         #endregion
     }
 }
