@@ -41,7 +41,7 @@ namespace ITM_Agent.Services
         public void Start()
         {
             if (_isRunning) return;
-            
+
             if (_settingsManager.GetValue("Option", "EnablePerfoLog") == "1")
             {
                 _isRunning = true;
@@ -65,7 +65,7 @@ namespace ITM_Agent.Services
             Flush();
             _logger.LogEvent("[PerformanceDbWriter] Service stopped.");
         }
-        
+
         private void OnPerformanceSampled(PerformanceMetric metric)
         {
             lock (_lock)
@@ -108,11 +108,11 @@ namespace ITM_Agent.Services
                     // ★★★★★★★★★★★★ 수정된 부분 ★★★★★★★★★★★★
                     // DateTime 객체에서 밀리초를 제거하는 로직
                     DateTime originalTs = metric.Timestamp;
-                    DateTime truncatedTs = new DateTime(originalTs.Year, originalTs.Month, originalTs.Day, 
+                    DateTime truncatedTs = new DateTime(originalTs.Year, originalTs.Month, originalTs.Day,
                                                         originalTs.Hour, originalTs.Minute, originalTs.Second);
 
                     DateTime synchronizedTs = _timeSyncProvider.ToSynchronizedKst(truncatedTs);
-                    DateTime truncatedServTs = new DateTime(synchronizedTs.Year, synchronizedTs.Month, synchronizedTs.Day, 
+                    DateTime truncatedServTs = new DateTime(synchronizedTs.Year, synchronizedTs.Month, synchronizedTs.Day,
                                                             synchronizedTs.Hour, synchronizedTs.Minute, synchronizedTs.Second);
                     // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
