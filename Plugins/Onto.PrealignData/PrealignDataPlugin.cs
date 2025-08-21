@@ -33,7 +33,7 @@ namespace Onto.PrealignData
         /// <summary>
         /// 플러그인 초기화 시 필요한 서비스를 주입받습니다.
         /// </summary>
-        public override void Initialize(IServiceProvider serviceProvider)
+        public override void Initialize(IAppServiceProvider serviceProvider)
         {
             base.Initialize(serviceProvider); // 기본 초기화 (Logger 할당)
 
