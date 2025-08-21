@@ -28,6 +28,7 @@ namespace ITM_Agent.Services
             {
                 if (_isRunning)
                 {
+                    _logger.LogDebug("[FileWatcherService] Watcher is already running. Stopping before restart.");
                     Stop();
                 }
 
@@ -49,17 +50,15 @@ namespace ITM_Agent.Services
                     {
                         IncludeSubdirectories = true,
                         NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
-                        // ★★★★★★★★★★★★ 수정된 부분 ★★★★★★★★★★★★
                         // 내부 버퍼 크기를 기본값(8KB)에서 최대값(64KB)으로 늘려 안정성 확보
                         InternalBufferSize = 65536
-                        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                     };
 
                     watcher.Created += OnFileEvent;
                     watcher.Changed += OnFileEvent;
                     watcher.Deleted += OnFileEvent;
                     watcher.Renamed += OnFileRenamedEvent;
-                    watcher.Error += OnWatcherError; // 오류 이벤트 핸들러 연결
+                    watcher.Error += OnWatcherError;
 
                     watcher.EnableRaisingEvents = true;
                     _watchers.Add(watcher);
@@ -98,7 +97,6 @@ namespace ITM_Agent.Services
 
         private void OnWatcherError(object sender, ErrorEventArgs e)
         {
-            // 오류 발생 시 로그만 기록하고, 감시 자체는 계속 유지되도록 함
             _logger.LogError($"[FileWatcherService] A watcher error occurred: {e.GetException()?.Message}");
         }
 
