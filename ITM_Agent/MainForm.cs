@@ -56,8 +56,7 @@ namespace ITM_Agent
 
             InitializeComponent();
             InitializeCustomComponents();
-            
-            // 폼이 표시된 직후에 비동기 초기화를 시작하도록 Shown 이벤트 핸들러를 연결합니다.
+
             this.Shown += MainForm_Shown;
         }
 
@@ -157,12 +156,11 @@ namespace ITM_Agent
                 tsm_Nova.Visible = false;
             }
         }
-        
+
         private void NewMenuItem_Click(object sender, EventArgs e) { /* New 로직 구현 */ }
         private void OpenMenuItem_Click(object sender, EventArgs e) { /* Open 로직 구현 */ }
         private void SaveAsMenuItem_Click(object sender, EventArgs e) { /* Save As 로직 구현 */ }
         private void QuitMenuItem_Click(object sender, EventArgs e) => Btn_Quit_Click(sender, e);
-
         #endregion
 
         #region --- 버튼 이벤트 핸들러 ---
@@ -265,7 +263,7 @@ namespace ITM_Agent
         }
         #endregion
 
-        #region --- UI ㅏㅇ태 및 패널 관리 ---
+        #region --- UI 상태 및 패널 관리 ---
         private bool IsReadyToRun()
         {
             bool hasTargetFolders = _settingsManager.GetSectionEntries("TargetFolders").Any();
@@ -280,6 +278,7 @@ namespace ITM_Agent
             btn_Run.Enabled = !isRunning && IsReadyToRun();
             btn_Stop.Enabled = isRunning;
             btn_Quit.Enabled = !isRunning;
+
             if (isRunning)
             {
                 ts_Status.Text = "Running...";
