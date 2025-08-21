@@ -2,17 +2,40 @@
 using ITM_Agent.Core;
 using ITM_Agent.Services;
 using System;
-// ... (다른 using 구문은 이전과 동일)
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Threading;
+using System.Windows.Forms;
 
 namespace ITM_Agent
 {
     internal static class Program
     {
-        // ... (Mutex 등 상단 내용은 변경 없음) ...
+        private static Mutex _mutex = null;
+        private const string AppGuid = "c0a76b5a-12ab-45c5-b9d9-d693faa6e7b9"; // 고유 ID
+
         [STAThread]
         static void Main()
         {
-            // ... (Mutex, Application 초기화 등은 변경 없음) ...
+            // 중복 실행 방지
+            _mutex = new Mutex(true, AppGuid, out bool createdNew);
+            if (!createdNew)
+            {
+                MessageBox.Show("ITM Agent가 이미 실행 중입니다.", "실행 확인", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            
+            // OS 언어에 따른 문화권 설정
+            SetCulture();
+
+            // 'Library' 폴더의 DLL을 동적으로 참조하기 위한 설정
+            AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolveHandler;
+            
             try
             {
                 // 1. 서비스 생성 (DB 접속 등 무거운 작업 없는 것들)
@@ -45,8 +68,45 @@ namespace ITM_Agent
                 var mainForm = new MainForm(serviceProvider);
                 Application.Run(mainForm);
             }
-            // ... (catch, finally 등 하단 내용은 변경 없음) ...
+            finally
+            {
+                _mutex?.ReleaseMutex();
+            }
         }
-        // ... (나머지 메서드들은 변경 없음) ...
+
+        private static void SetCulture()
+        {
+            var uiCulture = CultureInfo.CurrentUICulture;
+            if (!uiCulture.Name.StartsWith("ko", StringComparison.OrdinalIgnoreCase))
+            {
+                Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+            }
+        }
+
+        private static Assembly AssemblyResolveHandler(object sender, ResolveEventArgs args)
+        {
+            string assemblyName = new AssemblyName(args.Name).Name + ".dll";
+            string libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Library", assemblyName);
+            return File.Exists(libraryPath) ? Assembly.LoadFrom(libraryPath) : null;
+        }
+    }
+
+    /// <summary>
+    /// 간단한 서비스 프로바이더(DI 컨테이너) 구현
+    /// </summary>
+    public class ServiceProvider : IServiceProvider
+    {
+        private readonly Dictionary<Type, object> _services = new Dictionary<Type, object>();
+
+        public void Register<T>(T service) where T : class
+        {
+            _services[typeof(T)] = service;
+        }
+
+        public T GetService<T>() where T : class
+        {
+            _services.TryGetValue(typeof(T), out object service);
+            return service as T;
+        }
     }
 }
