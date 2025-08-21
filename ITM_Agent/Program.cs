@@ -29,13 +29,13 @@ namespace ITM_Agent
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            
+
             // OS 언어에 따른 문화권 설정
             SetCulture();
 
             // 'Library' 폴더의 DLL을 동적으로 참조하기 위한 설정
             AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolveHandler;
-            
+
             try
             {
                 // 1. 서비스 생성 (DB 접속 등 무거운 작업 없는 것들)
@@ -57,16 +57,21 @@ namespace ITM_Agent
                 serviceProvider.Register<FileWatcherService>(fileWatcherService);
                 var performanceMonitor = new PerformanceMonitor(logManager);
                 serviceProvider.Register<PerformanceMonitor>(performanceMonitor);
-                
+
                 // ★★★★★★★★★★★★ 수정된 부분 ★★★★★★★★★★★★
                 // 여기서 TimeSyncProvider를 초기화하면 DB 접속으로 인해 화면이 늦게 뜹니다.
                 // 이 로직을 MainForm으로 이동시킵니다.
                 // TimeSyncProvider.Instance.Initialize(serviceProvider); // <-- 이 줄 삭제
                 // ★★★★★★★★★★★★★★★★★★★★★★★★★★
-                
+
                 // 4. 메인 폼 실행
                 var mainForm = new MainForm(serviceProvider);
                 Application.Run(mainForm);
+            }
+            catch (Exception ex)
+            {
+                // 초기화 과정에서 발생하는 모든 예외를 처리
+                MessageBox.Show($"프로그램 초기화 중 심각한 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
