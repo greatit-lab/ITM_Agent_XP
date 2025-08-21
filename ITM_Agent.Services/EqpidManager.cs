@@ -91,12 +91,12 @@ namespace ITM_Agent.Services
                     _appVersion,
                     DateTime.Now
                 );
-                
+
                 // DatabaseManager의 Upsert와 유사한 기능이 필요
                 _databaseManager.BulkInsert(dt, "agent_info");
                 _logger.LogEvent($"[EqpidManager] Agent info for '{eqpid}' uploaded to database.");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError($"[EqpidManager] Failed to upload agent info to database. Error: {ex.Message}");
             }
