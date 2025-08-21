@@ -36,11 +36,10 @@ namespace Onto.ErrorData
         /// <summary>
         /// 플러그인 초기화 시 필요한 서비스를 주입받습니다.
         /// </summary>
-        public override void Initialize(IServiceProvider serviceProvider)
+        public override void Initialize(IAppServiceProvider serviceProvider)
         {
             base.Initialize(serviceProvider); // 기본 초기화 (Logger 할당)
-            
-            // 서비스 프로바이더로부터 필요한 서비스 인스턴스를 가져옵니다.
+
             _settingsManager = serviceProvider.GetService<SettingsManager>();
             _databaseManager = serviceProvider.GetService<DatabaseManager>();
             _timeSyncProvider = TimeSyncProvider.Instance; // 싱글턴 인스턴스 사용
@@ -95,7 +94,7 @@ namespace Onto.ErrorData
                 Logger.LogError($"[{Name}] Unhandled exception while processing '{path}'. Error: {ex.Message}");
             }
         }
-        
+
         #region --- 데이터 처리 및 테이블 생성 로직 ---
 
         private DataTable BuildErrorDataTable(string[] lines)
@@ -187,7 +186,7 @@ namespace Onto.ErrorData
                         set.Add(row[0].ToString().Trim().ToUpperInvariant());
                     }
                 }
-                 Logger.LogEvent($"[{Name}] Loaded {set.Count} error ID filter(s) from DB.");
+                    Logger.LogEvent($"[{Name}] Loaded {set.Count} error ID filter(s) from DB.");
             }
             catch (Exception ex)
             {
