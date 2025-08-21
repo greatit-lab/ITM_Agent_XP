@@ -166,7 +166,7 @@ namespace ITM_Agent.ucPanel
         private void OnWatchedFileChanged(string filePath, WatcherChangeTypes changeType)
         {
             if (changeType != WatcherChangeTypes.Created && changeType != WatcherChangeTypes.Changed) return;
-            
+
             if (this.InvokeRequired)
             {
                 this.BeginInvoke(new Action(() => ProcessFile(filePath)));
