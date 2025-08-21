@@ -50,7 +50,7 @@ namespace ITM_Agent.Services
             {
                 throw new InvalidOperationException("TimeSyncProvider 초기화에 필수 서비스가 필요합니다.");
             }
-            
+
             // 서비스 주입 후 타이머 시작
             StartTimer();
         }
