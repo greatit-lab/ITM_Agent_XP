@@ -3,6 +3,7 @@ using ITM_Agent.Core;
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq; // FirstOrDefault 사용을 위해 추가
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -21,7 +22,6 @@ namespace ITM_Agent.Services
             new Regex(@"(?<!\d)(?<ymd>\d{8})(?!\d)", RegexOptions.Compiled)
         };
 
-        // 생성자의 파라미터를 IAppServiceProvider로 수정
         public InfoRetentionCleaner(IAppServiceProvider serviceProvider)
         {
             _logger = serviceProvider.GetService<ILogger>();
@@ -47,7 +47,6 @@ namespace ITM_Agent.Services
             _logger.LogEvent("[InfoRetentionCleaner] Service stopped.");
         }
 
-        // ... 이하 나머지 코드는 변경 없음 ...
         private void Execute()
         {
             if (_settingsManager.GetValue("Option", "EnableInfoAutoDel") != "1")
@@ -62,7 +61,11 @@ namespace ITM_Agent.Services
                 return;
             }
 
-            string baseFolder = _settingsManager.GetValue("BaseFolder", "");
+            // ★★★★★★★★★★★★ 수정된 부분 ★★★★★★★★★★★★
+            // GetValue 대신 GetSectionEntries를 사용하여 BaseFolder 경로를 올바르게 조회
+            string baseFolder = _settingsManager.GetSectionEntries("BaseFolder").FirstOrDefault();
+            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
             if (string.IsNullOrEmpty(baseFolder) || !Directory.Exists(baseFolder))
             {
                 _logger.LogDebug("[InfoRetentionCleaner] BaseFolder is not set or does not exist. Skipping execution.");
