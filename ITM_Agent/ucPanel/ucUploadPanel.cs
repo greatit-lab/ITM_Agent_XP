@@ -17,9 +17,10 @@ namespace ITM_Agent.ucPanel
         private readonly ILogger _logger;
         private readonly SettingsManager _settingsManager;
         private readonly PluginManager _pluginManager;
-        private readonly FileWatcherService _fileWatcher;
 
-        // Settings.ini의 섹션 및 키 이름을 상수로 관리
+        // ★★★★★ FileWatcherService를 사용하지 않고 자체 Watcher 관리 ★★★★★
+        private readonly Dictionary<string, FileSystemWatcher> _watchers = new Dictionary<string, FileSystemWatcher>();
+
         private const string UploadSection = "UploadSetting";
 
         private struct UploadTarget
@@ -38,17 +39,12 @@ namespace ITM_Agent.ucPanel
 
         private readonly List<UploadTarget> _uploadTargets;
 
-        // 생성자 파라미터를 IAppServiceProvider로 수정
         public ucUploadPanel(IAppServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
             _logger = _serviceProvider.GetService<ILogger>();
             _settingsManager = _serviceProvider.GetService<SettingsManager>();
             _pluginManager = _serviceProvider.GetService<PluginManager>();
-            _fileWatcher = _serviceProvider.GetService<FileWatcherService>();
-
-            if (_logger == null || _settingsManager == null || _pluginManager == null || _fileWatcher == null)
-                throw new InvalidOperationException("필수 서비스가 주입되지 않았습니다.");
 
             InitializeComponent();
 
@@ -72,8 +68,6 @@ namespace ITM_Agent.ucPanel
             LoadAllUploadSettings();
         }
 
-        // ... 이하 나머지 코드는 이전 답변과 동일합니다 ...
-
         #region --- 설정 및 UI 이벤트 핸들러 ---
         private void RegisterEventHandlers()
         {
@@ -91,7 +85,67 @@ namespace ITM_Agent.ucPanel
             btn_EvClear.Click += (s, e) => ClearUploadSetting(_uploadTargets[4]);
             btn_WaveClear.Click += (s, e) => ClearUploadSetting(_uploadTargets[5]);
         }
+        
+        // ... (LoadCommonData, LoadAllUploadSettings 등 기존 코드는 변경 없음) ...
+        // ... (ClearUploadSetting 등 기존 코드는 변경 없음) ...
+        
+        private void SaveUploadSetting(UploadTarget target)
+        {
+            string folder = target.PathCombo.Text.Trim();
+            string pluginName = target.PluginCombo.Text.Trim();
 
+            if (string.IsNullOrEmpty(folder) || string.IsNullOrEmpty(pluginName))
+            {
+                MessageBox.Show("폴더와 플러그인을 모두 선택해야 합니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string settingValue = $"Folder : {folder}, Plugin : {pluginName}";
+            _settingsManager.SetValue(UploadSection, target.Key, settingValue);
+            
+            // ★★★★★ Watcher 시작/재시작 로직 추가 ★★★★★
+            if(_isRunning)
+            {
+                StartWatcher(target.Key, folder);
+            }
+
+            _logger.LogEvent($"[ucUploadPanel] Upload setting saved for '{target.Key}': {settingValue}");
+            MessageBox.Show($"{target.Key} 설정이 저장되었습니다.", "저장 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void ClearUploadSetting(UploadTarget target)
+        {
+            target.PathCombo.SelectedIndex = -1;
+            target.PathCombo.Text = "";
+            target.PluginCombo.SelectedIndex = -1;
+            target.PluginCombo.Text = "";
+            _settingsManager.SetValue(UploadSection, target.Key, null);
+            
+            // ★★★★★ Watcher 중지 로직 추가 ★★★★★
+            StopWatcher(target.Key);
+            
+            _logger.LogEvent($"[ucUploadPanel] Upload setting cleared for '{target.Key}'.");
+        }
+        
+        private void LoadAllUploadSettings()
+        {
+            foreach (var target in _uploadTargets)
+            {
+                string settingValue = _settingsManager.GetValue(UploadSection, target.Key);
+                if (!string.IsNullOrEmpty(settingValue))
+                {
+                    var parts = settingValue.Split(',');
+                    if (parts.Length == 2)
+                    {
+                        string folder = parts[0].Split(new[] { ':' }, 2)[1].Trim();
+                        string plugin = parts[1].Split(new[] { ':' }, 2)[1].Trim();
+                        target.PathCombo.SelectedItem = folder;
+                        target.PluginCombo.SelectedItem = plugin;
+                    }
+                }
+            }
+        }
+        
         private void LoadCommonData()
         {
             var regexFolders = _settingsManager.GetSectionEntries("Regex")
@@ -114,105 +168,110 @@ namespace ITM_Agent.ucPanel
             }
         }
 
-        private void LoadAllUploadSettings()
-        {
-            foreach (var target in _uploadTargets)
-            {
-                string settingValue = _settingsManager.GetValue(UploadSection, target.Key);
-                if (!string.IsNullOrEmpty(settingValue))
-                {
-                    var parts = settingValue.Split(',');
-                    if (parts.Length == 2)
-                    {
-                        string folder = parts[0].Split(new[] { ':' }, 2)[1].Trim();
-                        string plugin = parts[1].Split(new[] { ':' }, 2)[1].Trim();
-                        target.PathCombo.SelectedItem = folder;
-                        target.PluginCombo.SelectedItem = plugin;
-                    }
-                }
-            }
-        }
+        #endregion
 
-        private void SaveUploadSetting(UploadTarget target)
+        #region --- 파일 감시 로직 (기능 복원) ---
+        
+        private void StartWatcher(string key, string path)
         {
-            string folder = target.PathCombo.Text.Trim();
-            string plugin = target.PluginCombo.Text.Trim();
+            StopWatcher(key); // 기존 감시자 정리
 
-            if (string.IsNullOrEmpty(folder) || string.IsNullOrEmpty(plugin))
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             {
-                MessageBox.Show("폴더와 플러그인을 모두 선택해야 합니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _logger.LogError($"[ucUploadPanel] Cannot watch invalid path for '{key}': {path}");
                 return;
             }
 
-            string settingValue = $"Folder : {folder}, Plugin : {plugin}";
-            _settingsManager.SetValue(UploadSection, target.Key, settingValue);
-            _logger.LogEvent($"[ucUploadPanel] Upload setting saved for '{target.Key}': {settingValue}");
-            MessageBox.Show($"{target.Key} 설정이 저장되었습니다.", "저장 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            var watcher = new FileSystemWatcher(path)
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite
+            };
+            
+            // 이벤트 핸들러에 키와 플러그인 정보를 함께 넘겨주기 위해 람다식 사용
+            watcher.Created += (sender, e) => OnFileCreated(e, key);
+            watcher.EnableRaisingEvents = true;
+
+            _watchers[key] = watcher;
+            _logger.LogEvent($"[ucUploadPanel] Started watching for '{key}' at '{path}'");
         }
 
-        private void ClearUploadSetting(UploadTarget target)
+        private void StopWatcher(string key)
         {
-            target.PathCombo.SelectedIndex = -1;
-            target.PathCombo.Text = "";
-            target.PluginCombo.SelectedIndex = -1;
-            target.PluginCombo.Text = "";
-            _settingsManager.SetValue(UploadSection, target.Key, null);
-            _logger.LogEvent($"[ucUploadPanel] Upload setting cleared for '{target.Key}'.");
-        }
-        #endregion
-
-        #region --- 파일 감시 이벤트 처리 ---
-
-        private void OnWatchedFileChanged(string filePath, WatcherChangeTypes changeType)
-        {
-            if (changeType != WatcherChangeTypes.Created && changeType != WatcherChangeTypes.Changed) return;
-
-            if (this.InvokeRequired)
+            if (_watchers.TryGetValue(key, out FileSystemWatcher watcher))
             {
-                this.BeginInvoke(new Action(() => ProcessFile(filePath)));
-            }
-            else
-            {
-                ProcessFile(filePath);
+                watcher.EnableRaisingEvents = false;
+                watcher.Dispose();
+                _watchers.Remove(key);
+                _logger.LogEvent($"[ucUploadPanel] Stopped watching for '{key}'");
             }
         }
 
-        private void ProcessFile(string filePath)
+        private void OnFileCreated(FileSystemEventArgs e, string key)
         {
-            string fileDirectory = Path.GetDirectoryName(filePath);
+            // 해당 키에 맞는 플러그인 찾기
+            var target = _uploadTargets.FirstOrDefault(t => t.Key == key);
+            if (target.Equals(default(UploadTarget))) return;
 
-            foreach (var target in _uploadTargets)
+            string pluginName = null;
+            // UI 컨트롤 접근은 Invoke 필요
+            this.Invoke((MethodInvoker)delegate
             {
-                if (target.PathCombo.SelectedItem?.ToString().Equals(fileDirectory, StringComparison.OrdinalIgnoreCase) ?? false)
-                {
-                    string pluginName = target.PluginCombo.SelectedItem?.ToString();
-                    if (!string.IsNullOrEmpty(pluginName))
-                    {
-                        var plugin = _pluginManager.GetPlugin(pluginName);
-                        if (plugin != null)
-                        {
-                            _logger.LogDebug($"[ucUploadPanel]'{filePath}' matches '{target.Key}'. Triggering plugin: '{pluginName}'");
-                            ThreadPool.QueueUserWorkItem(_ => plugin.Process(filePath));
-                        }
-                    }
-                }
-            }
-        }
+                pluginName = target.PluginCombo.SelectedItem?.ToString();
+            });
 
+            if (string.IsNullOrEmpty(pluginName))
+            {
+                _logger.LogError($"[ucUploadPanel] No plugin selected for '{key}' to process file: {e.Name}");
+                return;
+            }
+
+            var plugin = _pluginManager.GetPlugin(pluginName);
+            if (plugin == null)
+            {
+                _logger.LogError($"[ucUploadPanel] Plugin '{pluginName}' not found for key '{key}'");
+                return;
+            }
+
+            // 플러그인 처리는 백그라운드 스레드에서
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                // 원본 코드의 OverrideNamesPanel 연동 로직은 이제 각 플러그인 내부나
+                // 별도 서비스에서 처리해야 하므로 여기서는 직접 호출하지 않음
+                // 필요 시 IAppServiceProvider를 통해 OverrideNamesPanel의 public 메서드에 접근 가능
+                plugin.Process(e.FullPath);
+            });
+        }
+        
         #endregion
 
         #region --- IPanelState 구현 ---
 
+        private bool _isRunning = false;
         public void UpdateState(bool isRunning)
         {
+            _isRunning = isRunning;
             this.Enabled = !isRunning;
+
             if (isRunning)
             {
-                _fileWatcher.FileChanged += OnWatchedFileChanged;
+                // 저장된 모든 설정에 대해 감시 시작
+                foreach(var target in _uploadTargets)
+                {
+                    string folder = target.PathCombo.SelectedItem?.ToString();
+                    if(!string.IsNullOrEmpty(folder))
+                    {
+                        StartWatcher(target.Key, folder);
+                    }
+                }
             }
             else
             {
-                _fileWatcher.FileChanged -= OnWatchedFileChanged;
+                // 모든 감시 중지
+                var keys = _watchers.Keys.ToList();
+                foreach(var key in keys)
+                {
+                    StopWatcher(key);
+                }
             }
         }
 
