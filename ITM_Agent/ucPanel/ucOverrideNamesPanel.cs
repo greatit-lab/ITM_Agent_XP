@@ -18,18 +18,17 @@ namespace ITM_Agent.ucPanel
         private readonly IAppServiceProvider _serviceProvider;
         private readonly ILogger _logger;
         private readonly SettingsManager _settingsManager;
-        private readonly FileWatcherService _fileWatcher;
 
         //--- 내부 상태 관리 ---
         private string _baseDatePath;
-        // ★★★★★★★★★★★★ 수정된 부분 ★★★★★★★★★★★★
-        // 생성자에서 즉시 초기화하여 null 상태를 방지합니다.
         private List<string> _targetComparePaths = new List<string>();
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        private const double StabilityCheckSeconds = 2.0;
+
+        // ★★★★★ 누락되었던 FileSystemWatcher 추가 ★★★★★
+        private FileSystemWatcher _baseDateFolderWatcher;
         private readonly Dictionary<string, DateTime> _pendingBaselineFiles = new Dictionary<string, DateTime>();
         private readonly object _lock = new object();
         private System.Threading.Timer _stabilityTimer;
+        private const double StabilityCheckSeconds = 2.0;
 
         // Settings.ini의 섹션 및 키 이름
         private const string Section = "OverrideNames";
@@ -41,15 +40,13 @@ namespace ITM_Agent.ucPanel
             _serviceProvider = serviceProvider;
             _logger = _serviceProvider.GetService<ILogger>();
             _settingsManager = _serviceProvider.GetService<SettingsManager>();
-            _fileWatcher = _serviceProvider.GetService<FileWatcherService>();
+            
+            // FileWatcherService는 더 이상 직접 사용하지 않습니다.
 
             InitializeComponent();
 
-            // ★★★★★★★★★★★★ 수정된 부분 ★★★★★★★★★★★★
-            // Load 이벤트 대신 생성자에서 직접 초기화 로직을 호출합니다.
             RegisterEventHandlers();
             LoadSettings();
-            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
         }
 
         private void RegisterEventHandlers()
@@ -75,6 +72,12 @@ namespace ITM_Agent.ucPanel
             _baseDatePath = _settingsManager.GetValue(Section, KeyBaseDatePath);
             cb_BaseDatePath.SelectedItem = _baseDatePath;
 
+            // _baseDatePath가 설정되어 있으면 감시 시작
+            if (!string.IsNullOrEmpty(_baseDatePath))
+            {
+                StartWatchingBaseDateFolder(_baseDatePath);
+            }
+
             _targetComparePaths = _settingsManager.GetSectionEntries(SectionTargetCompare);
             lb_TargetComparePath.Items.Clear();
             lb_TargetComparePath.Items.AddRange(_targetComparePaths.ToArray());
@@ -86,6 +89,8 @@ namespace ITM_Agent.ucPanel
         {
             _baseDatePath = cb_BaseDatePath.SelectedItem?.ToString();
             _settingsManager.SetValue(Section, KeyBaseDatePath, _baseDatePath);
+            // 선택된 폴더로 감시자 재시작
+            StartWatchingBaseDateFolder(_baseDatePath);
         }
 
         private void OnBaseClearClick(object sender, EventArgs e)
@@ -93,6 +98,8 @@ namespace ITM_Agent.ucPanel
             cb_BaseDatePath.SelectedIndex = -1;
             _baseDatePath = null;
             _settingsManager.SetValue(Section, KeyBaseDatePath, null);
+            // 감시자 중지
+            StopWatchingBaseDateFolder();
         }
 
         private void OnSelectTargetFolderClick(object sender, EventArgs e)
@@ -119,35 +126,58 @@ namespace ITM_Agent.ucPanel
             _settingsManager.SetSectionEntries(SectionTargetCompare, _targetComparePaths);
             LoadSettings();
         }
-
         #endregion
 
-        #region --- 파일 처리 로직 ---
+        #region --- 파일 처리 및 감시 로직 (기능 복원) ---
 
-        private void OnWatchedFileChanged(string filePath, WatcherChangeTypes changeType)
+        private void StartWatchingBaseDateFolder(string path)
         {
-            // GetDirectoryName이 null을 반환할 수 있으므로 방어 코드 추가
-            string directory = Path.GetDirectoryName(filePath);
-            if (directory == null) return;
+            StopWatchingBaseDateFolder(); // 기존 감시자 정리
 
-            if (directory.Equals(_baseDatePath, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             {
-                lock (_lock)
-                {
-                    _pendingBaselineFiles[filePath] = DateTime.Now;
-                    if (_stabilityTimer == null)
-                    {
-                        _stabilityTimer = new System.Threading.Timer(_ => CheckFileStability(), null, 1000, 1000);
-                    }
-                }
+                _logger.LogDebug($"[OverrideNames] Base date folder path is invalid or does not exist: '{path}'");
+                return;
             }
-            else if (_targetComparePaths.Any(p => directory.Equals(p, StringComparison.OrdinalIgnoreCase))
-                     && filePath.EndsWith(".info", StringComparison.OrdinalIgnoreCase))
+
+            _baseDateFolderWatcher = new FileSystemWatcher(path)
             {
-                ThreadPool.QueueUserWorkItem(_ => RenameTargetFilesBasedOnInfo(filePath));
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                IncludeSubdirectories = true // 원본 코드와 동일하게 하위 폴더 포함
+            };
+
+            _baseDateFolderWatcher.Created += OnBaseDateFileEvent;
+            _baseDateFolderWatcher.Changed += OnBaseDateFileEvent;
+            _baseDateFolderWatcher.EnableRaisingEvents = true;
+            _logger.LogEvent($"[OverrideNames] Started watching base date folder: {path}");
+        }
+
+        private void StopWatchingBaseDateFolder()
+        {
+            if (_baseDateFolderWatcher != null)
+            {
+                _baseDateFolderWatcher.EnableRaisingEvents = false;
+                _baseDateFolderWatcher.Dispose();
+                _baseDateFolderWatcher = null;
+                _logger.LogEvent("[OverrideNames] Stopped watching base date folder.");
             }
         }
 
+        private void OnBaseDateFileEvent(object sender, FileSystemEventArgs e)
+        {
+            if (!File.Exists(e.FullPath)) return;
+
+            lock (_lock)
+            {
+                _pendingBaselineFiles[e.FullPath] = DateTime.Now;
+                if (_stabilityTimer == null)
+                {
+                    _stabilityTimer = new System.Threading.Timer(_ => CheckFileStability(), null, 1000, 1000);
+                }
+            }
+        }
+        
+        // .info 파일 생성 및 이름 변경 로직은 원본과 거의 동일하게 복원
         private void CheckFileStability()
         {
             var stableFiles = new List<string>();
@@ -177,9 +207,8 @@ namespace ITM_Agent.ucPanel
         {
             try
             {
-                // CP949 인코딩으로 파일 읽기
                 string content;
-                using (var sr = new StreamReader(filePath, Encoding.GetEncoding(949)))
+                using (var sr = new StreamReader(filePath, Encoding.GetEncoding(949), true))
                 {
                     content = sr.ReadToEnd();
                 }
@@ -199,6 +228,9 @@ namespace ITM_Agent.ucPanel
 
                     File.Create(infoFilePath).Close();
                     _logger.LogEvent($"[OverrideNames] Baseline info file created: {infoFileName}");
+
+                    // .info 파일 생성 후 즉시 이름 변경 로직 트리거
+                    RenameTargetFilesBasedOnInfo(infoFilePath);
                 }
             }
             catch (Exception ex)
@@ -209,45 +241,54 @@ namespace ITM_Agent.ucPanel
 
         private void RenameTargetFilesBasedOnInfo(string infoFilePath)
         {
-            var infoMatch = Regex.Match(Path.GetFileName(infoFilePath), @"_([^_]+?)_(C\dW\d+)\.info$");
+            var infoMatch = Regex.Match(Path.GetFileName(infoFilePath), @"(\d{8}_\d{6})_([^_]+?)_(C\dW\d+)");
             if (!infoMatch.Success) return;
-
-            string prefix = infoMatch.Groups[1].Value;
-            string cInfo = infoMatch.Groups[2].Value;
-            string targetFolder = Path.GetDirectoryName(infoFilePath);
-
-            var filesToRename = Directory.GetFiles(targetFolder, $"*_{prefix}_#1_*.dat");
-
-            foreach (var file in filesToRename)
+            
+            string timeInfo = infoMatch.Groups[1].Value;
+            string prefix = infoMatch.Groups[2].Value;
+            string cInfo = infoMatch.Groups[3].Value;
+            
+            foreach(var targetFolder in _targetComparePaths)
             {
-                try
+                if(!Directory.Exists(targetFolder)) continue;
+
+                var filesToRename = Directory.GetFiles(targetFolder, $"*{prefix}*");
+
+                foreach (var file in filesToRename)
                 {
-                    string newFileName = Path.GetFileName(file).Replace("_#1_", $"_{cInfo}_");
-                    string newFilePath = Path.Combine(targetFolder, newFileName);
-                    File.Move(file, newFilePath);
-                    _logger.LogEvent($"[OverrideNames] File renamed: {Path.GetFileName(file)} -> {newFileName}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"[OverrideNames] Failed to rename file '{file}'. Error: {ex.Message}");
+                    try
+                    {
+                        if(Path.GetFileName(file).Contains("_#1_"))
+                        {
+                            string newFileName = Path.GetFileName(file).Replace("_#1_", $"_{cInfo}_");
+                            string newFilePath = Path.Combine(targetFolder, newFileName);
+                            File.Move(file, newFilePath);
+                            _logger.LogEvent($"[OverrideNames] File renamed: {Path.GetFileName(file)} -> {newFileName}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"[OverrideNames] Failed to rename file '{file}'. Error: {ex.Message}");
+                    }
                 }
             }
         }
+
         #endregion
 
         #region --- IPanelState 구현 ---
         public void UpdateState(bool isRunning)
         {
             this.Enabled = !isRunning;
+            
+            // 실행 상태에 따라 자체 Watcher 제어
             if (isRunning)
             {
-                _fileWatcher.FileChanged += OnWatchedFileChanged;
+                StartWatchingBaseDateFolder(_baseDatePath);
             }
             else
             {
-                _fileWatcher.FileChanged -= OnWatchedFileChanged;
-                _stabilityTimer?.Dispose();
-                _stabilityTimer = null;
+                StopWatchingBaseDateFolder();
             }
         }
         #endregion
